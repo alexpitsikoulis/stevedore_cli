@@ -34,7 +34,7 @@ async fn main() {
         }
         Command::Stop(args) => {
             match client.stop(args.clone()).await {
-                Ok(res) => {
+                Ok(_) => {
                     println!("job stopped successfully");
                 }
                 Err(e) => {
@@ -50,13 +50,37 @@ async fn main() {
                 println!("{:?}", res);
             }
             Err(e) => {
-                eprintln!("FAILED to query status of job {}", args.job_id);
+                eprintln!("FAILED to query status of job {}: {:?}", args.job_id, e);
             }
         },
         Command::Stream(args) => match client.stream(args.clone()).await {
-            Ok(stream) => {
-                todo!()
-            }
+            Ok(mut stream) => loop {
+                match stream.message().await {
+                    Ok(message) => {
+                        match message {
+                            Some(message) => {
+                                let output = match String::from_utf8(message.output) {
+                                    Ok(output) => output,
+                                    Err(e) => {
+                                        eprintln!(
+                                            "failed to cast stream output to string: {:?}",
+                                            e
+                                        );
+                                        return;
+                                    }
+                                };
+                                print!("{}", output);
+                            }
+                            None => {
+                                break;
+                            }
+                        };
+                    }
+                    Err(e) => {
+                        eprintln!("failed to receive message from output stream: {:?}", e);
+                    }
+                };
+            },
             Err(e) => {
                 eprintln!("FAILED to stream output for job {}: {:?}", args.job_id, e)
             }

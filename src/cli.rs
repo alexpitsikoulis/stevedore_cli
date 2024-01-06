@@ -32,7 +32,7 @@ pub fn parse_cmd() -> Result<Command, String> {
                         .help("UUID of the job to be stopped")
                         .required(true)
                         .index(1),
-                        Arg::with_name("gracefully")
+                    Arg::with_name("gracefully")
                         .short('g')
                         .long("gracefully")
                         .help("Flag to specify whether the process will be stopped gracefully (with SIGTERM rather than SIGKILL)")
@@ -62,7 +62,7 @@ pub fn parse_cmd() -> Result<Command, String> {
 
     match matches.subcommand() {
         Some(("start", args)) => {
-            let args = match args.get_many::<&str>("command") {
+            let args = match args.get_many::<String>("command") {
                 Some(args) => {
                     if args.len() == 0 {
                         return Err("args list is empty".into());
@@ -71,9 +71,9 @@ pub fn parse_cmd() -> Result<Command, String> {
                 }
                 None => return Err("failed to get command args".into()),
             };
-            let mut args: Vec<String> = args.map(|&arg| String::from(arg)).collect();
+            let mut args: Vec<String> = args.cloned().collect();
             let name = args.remove(0);
-            Ok(Command::Start(StartJobRequest { name: name, args }))
+            Ok(Command::Start(StartJobRequest { name, args }))
         }
         Some(("stop", args)) => {
             let id = match validate_job_id(args) {
@@ -83,10 +83,7 @@ pub fn parse_cmd() -> Result<Command, String> {
             Ok(Command::Stop(StopJobRequest {
                 job_id: id,
                 owner_id: Uuid::new_v4().to_string(),
-                gracefully: match args.get_one("gracefully") {
-                    Some(gracefully) => *gracefully,
-                    None => false,
-                },
+                gracefully: args.is_present("gracefully"),
             }))
         }
         Some(("query", args)) => {
@@ -120,7 +117,7 @@ fn validate_job_id(args: &ArgMatches) -> Result<String, String> {
             Ok(_) => Ok(id.clone()),
             Err(e) => Err(format!(
                 "failed to parse id '{}', please provide a valid UUID: {:?}",
-                e, id
+                id, e
             )),
         },
         None => Err("failed to get id arg".into()),
