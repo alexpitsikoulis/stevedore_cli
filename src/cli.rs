@@ -1,8 +1,19 @@
 use clap::{App, Arg, ArgMatches, SubCommand};
 use uuid::Uuid;
 
-use crate::client::runner::{QueryJobRequest, StartJobRequest, StopJobRequest, StreamJobRequest};
+use crate::grpc_client::runner::{
+    QueryJobRequest, StartJobRequest, StopJobRequest, StreamJobRequest,
+};
 
+#[derive(Debug)]
+pub enum ParseError {
+    EmptyArgs,
+    GetArgsFailed,
+    SubcommandMissing,
+    SubcommandNotSupported(String),
+    MissingID,
+    InvalidID(uuid::Error),
+}
 pub enum Command {
     Start(StartJobRequest),
     Stop(StopJobRequest),
@@ -10,7 +21,7 @@ pub enum Command {
     Stream(StreamJobRequest),
 }
 
-pub fn parse_cmd() -> Result<Command, String> {
+pub fn parse_cmd() -> Result<Command, ParseError> {
     let matches = App::new("Stevedore CLI")
         .author("Alex Pitsikoulis")
         .about("CLI to interact with Stevedore's gRPC API")
@@ -65,11 +76,11 @@ pub fn parse_cmd() -> Result<Command, String> {
             let args = match args.get_many::<String>("command") {
                 Some(args) => {
                     if args.len() == 0 {
-                        return Err("args list is empty".into());
+                        return Err(ParseError::EmptyArgs);
                     }
                     args
                 }
-                None => return Err("failed to get command args".into()),
+                None => return Err(ParseError::GetArgsFailed),
             };
             let mut args: Vec<String> = args.cloned().collect();
             let name = args.remove(0);
@@ -106,20 +117,17 @@ pub fn parse_cmd() -> Result<Command, String> {
                 owner_id: Uuid::new_v4().to_string(),
             }))
         }
-        Some((other, _)) => Err(format!("subcommand '{}' is not supported", other)),
-        None => Err("no subcommand was provided".into()),
+        Some((other, _)) => Err(ParseError::SubcommandNotSupported(other.into())),
+        None => Err(ParseError::SubcommandMissing),
     }
 }
 
-fn validate_job_id(args: &ArgMatches) -> Result<String, String> {
+fn validate_job_id(args: &ArgMatches) -> Result<String, ParseError> {
     match args.get_one::<String>("id") {
         Some(id) => match Uuid::parse_str(id) {
             Ok(_) => Ok(id.clone()),
-            Err(e) => Err(format!(
-                "failed to parse id '{}', please provide a valid UUID: {:?}",
-                id, e
-            )),
+            Err(e) => Err(ParseError::InvalidID(e)),
         },
-        None => Err("failed to get id arg".into()),
+        None => Err(ParseError::MissingID),
     }
 }

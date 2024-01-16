@@ -7,11 +7,11 @@ edition = "2021"
 
 [dependencies]
 clap = "3.1.18"
-reqwest = { version = "0.11.23", features = ["stream"] }
 tokio = { version = "1.35.1", features = ["full"] }
 uuid = { version = "1.6.1", features = ["v4"] }
-tonic = "0.10.2"
+tonic = { version = "0.10.2", features = ["tls"] }
 prost = "0.12.3"
+openssl = "0.10.62"
 
 [build-dependencies]
 tonic-build = "0.10.2"

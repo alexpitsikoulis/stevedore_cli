@@ -1,25 +1,33 @@
+mod auth;
 mod cli;
-mod client;
-use cli::Command;
-use client::Client;
+mod grpc_client;
+
+use cli::{Command, ParseError};
+use grpc_client::{Client, ClientError};
+
+#[derive(Debug)]
+enum Error {
+    ParseFailed(ParseError),
+    _ClientFailure(ClientError),
+    _General(String),
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl std::error::Error for Error {}
 
 #[tokio::main]
-async fn main() {
-    let cmd = match cli::parse_cmd() {
-        Ok(cmd) => cmd,
-        Err(e) => {
-            eprint!("failed to parse args: {:?}", e);
-            return;
-        }
-    };
-
-    let mut client = match Client::new("http://[::1]:50051".into()).await {
-        Ok(client) => client,
-        Err(e) => {
-            eprint!("failed to initialize gRPC client: {:?}", e);
-            return;
-        }
-    };
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut client = Client::new(
+        "https://127.0.0.1:50051",
+        "http://127.0.0.1:50052",
+    )
+    .await?;
+    let cmd = cli::parse_cmd().map_err(Error::ParseFailed)?;
 
     match cmd {
         Command::Start(args) => {
@@ -66,7 +74,7 @@ async fn main() {
                                             "failed to cast stream output to string: {:?}",
                                             e
                                         );
-                                        return;
+                                        break;
                                     }
                                 };
                                 print!("{}", output);
@@ -86,4 +94,5 @@ async fn main() {
             }
         },
     };
+    Ok(())
 }

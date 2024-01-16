@@ -3,11 +3,21 @@ syntax = "proto3";
 package runner;
 
 service Runner {
+    rpc SignCertificate(SignCertificateRequest) returns (SignCertificateResponse);
     rpc StartJob(StartJobRequest) returns (StartJobResponse);
     rpc StopJob(StopJobRequest) returns (StopJobResponse);
     rpc QueryJob(QueryJobRequest) returns (QueryJobResponse);
     rpc StreamJob(StreamJobRequest) returns (stream StreamJobResponse);
 }
+
+message SignCertificateRequest {
+    string id = 1;
+}
+
+message SignCertificateResponse {
+    bytes certificate = 1;
+}
+
 
 message StartJobRequest {
     string name = 1;
